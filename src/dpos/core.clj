@@ -109,6 +109,7 @@
                     ;; 2. create a block
                     (update peer create-block)
                     ;; 3. send out the block to other peers
+                    ;; TODO model indirection through inbox
                     (send-new-block peer))))))))
 
 
@@ -119,20 +120,20 @@
 (def settled (settled-chain longest (keys init)))
 
 
-;; TODO mark settled blocks and ensure longest chain contains all settled blocks
-;; simulate discretized time with stochasticity
-
 
 (reduce + (mapcat :txs longest)) ;; => 45
 
 
 ;; EOS ?
 
+;; TODO mark settled blocks and ensure longest chain contains all settled blocks
+;; simulate discretized time with stochasticity
+
 ;; open questions
-;; - how is delegate membership modeled
+
 ;; - how is time and peer<->block sequence agreed upon?
 ;; - model double spending attack
 
 ;; orthogonal design questions
 ;; - collect fees due to tx type (and cost)
-;; - ensure public key integrity
+;; - ensure public key integrity on system entry
