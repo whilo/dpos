@@ -79,7 +79,8 @@
     (drop-last (Math/ceil (* quorum c)) chain)))
 
 
-;; stateful
+
+;; stateful simulation:
 
 
 (def state (atom init))
@@ -103,8 +104,11 @@
              (fn [old]
                (let [peer (block-order i)]
                  (-> old
+                    ;; 1. collect transactions for block
                     (send-transaction peer i)
+                    ;; 2. create a block
                     (update peer create-block)
+                    ;; 3. send out the block to other peers
                     (send-new-block peer))))))))
 
 
@@ -115,8 +119,14 @@
 (def settled (settled-chain longest (keys init)))
 
 
+;; TODO mark settled blocks and ensure longest chain contains all settled blocks
+;; simulate discretized time with stochasticity
+
+
 (reduce + (mapcat :txs longest)) ;; => 45
 
+
+;; EOS ?
 
 ;; open questions
 ;; - how is delegate membership modeled
