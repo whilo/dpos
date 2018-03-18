@@ -124,7 +124,8 @@
 (reduce + (mapcat :txs longest)) ;; => 45
 
 
-;; EOS ?
+;; simplified EOS
+;; we do not do the latency reduction with intermediate blocks for now
 
 ;; TODO mark settled blocks and ensure longest chain contains all settled blocks
 ;; simulate discretized time with stochasticity
@@ -134,6 +135,10 @@
 ;; - how is time and peer<->block sequence agreed upon?
 ;; - model double spending attack
 
+;; https://steemit.com/eos/@eosgo/4izmr903
 ;; orthogonal design questions
 ;; - collect fees due to tx type (and cost)
 ;; - ensure public key integrity on system entry
+;; - users can sign prior block in tx to validate block chain
+;; - all peers should ack after receive new block to shorten irreversible ack, high water mark
+;; - TODO 2/3 need to be byzantine for DPoS to fail (?)
