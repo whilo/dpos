@@ -10,25 +10,30 @@
 
 
 (def genesis {:parent nil
-              :pos 0
+              :height 0
               :txs []})
 
 
+(defn init-peer [id]
+  {:head (uuid genesis)
+           :id id
+           :pending []
+           :blocks {(uuid genesis) genesis}})
 
-(def init
-  {:peerA {:head (uuid genesis)
-           :id :peerA
-           :pending []
-           :blocks {(uuid genesis) genesis}}
-   :peerB {:head (uuid genesis)
-           :id :peerB
-           :pending []
-           :blocks {(uuid genesis) genesis}}
-   :peerC {:head (uuid genesis)
-           :id :peerC
-           :pending []
-           :blocks {(uuid genesis) genesis}}})
 
+;stake holders 
+; full datastructure
+; {:balance 10 :pubkey xyz}
+(def stake-holders {:s1 10 :s2 30 :s3 20 :s4 5 :s5 3 :s6 2 :s7 30})
+
+
+;delegates = peers
+
+;global state simulation 
+(def initial-state
+  {:peerA (init-peer :peerA)
+   :peerB (init-peer :peerB)
+   :peerC (init-peer :peerC)})
 
 
 ;; model sequence of steps
@@ -39,12 +44,18 @@
 
 
 
-(defn create-block [peer]
+(defn create-block-chain [peer]
   (let [{:keys [chain pending id blocks]} peer
-        max-block (apply max-key :pos (vals blocks))
+        max-block (apply max-key :height (vals blocks))
+        ;new block from pending tx
+        ;new block height is +1 from last
+
         new-block {:txs pending
-                   :pos (inc (:pos max-block))
-                   :parent (uuid max-block)}]
+                   :height (inc (:height max-block))
+                   :previousblock max-block ;TODO blockhash
+                   }
+        ;new-block-hash 
+        ]
     {:head new-block
      :pending []
      :id id
@@ -66,11 +77,11 @@
 
 (defn find-longest-chain [peer]
   (let [{:keys [blocks]} peer
-        m (apply max-key :pos (vals blocks))]
+        m (apply max-key :height (vals blocks))]
     (loop [chain []
            b m]
       (if b
-        (recur (conj chain b) (blocks (:parent b)))
+        (recur (conj chain b) (blocks (:previousblock b)))
         (vec (reverse chain))))))
 
 
@@ -83,7 +94,10 @@
 ;; stateful simulation:
 
 
-(def state (atom init))
+(def state (atom initial-state))
+
+(defn set-genesis []
+  (reset! state (atom initial-state)))
 
 
 (clojure.pprint/pprint @state)
@@ -98,7 +112,7 @@
 
 ;; perfect simulation
 (defn simulate [steps]
-  (let [block-order (peer-order (keys init) steps)]
+  (let [block-order (peer-order (keys initial-state) steps)]
     (for [i (range steps)]
       (swap! state
              (fn [old]
@@ -107,7 +121,7 @@
                     ;; 1. collect transactions for block
                     (send-transaction peer i)
                     ;; 2. create a block
-                    (update peer create-block)
+                    (update peer create-block-chain)
                     ;; 3. send out the block to other peers
                     ;; TODO model indirection through inbox
                     (send-new-block peer))))))))
@@ -117,28 +131,10 @@
 
 (def longest (find-longest-chain (:peerA @state)))
 
-(def settled (settled-chain longest (keys init)))
+(def settled (settled-chain longest (keys initial-state)))
 
+(def a 10)
 
+;(reduce + (mapcat :txs longest)) ;; => 45
 
-(reduce + (mapcat :txs longest)) ;; => 45
-
-
-;; simplified EOS
-;; we do not do the latency reduction with intermediate blocks for now
-
-;; TODO mark settled blocks and ensure longest chain contains all settled blocks
-;; simulate discretized time with stochasticity
-
-;; open questions
-
-;; - how is time and peer<->block sequence agreed upon?
-;; - model double spending attack
-
-;; https://steemit.com/eos/@eosgo/4izmr903
-;; orthogonal design questions
-;; - collect fees due to tx type (and cost)
-;; - ensure public key integrity on system entry
-;; - users can sign prior block in tx to validate block chain
-;; - all peers should ack after receive new block to shorten irreversible ack, high water mark
-;; - TODO 2/3 need to be byzantine for DPoS to fail (?)
+;
