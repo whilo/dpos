@@ -20,6 +20,16 @@
            :pending []
            :blocks {(uuid genesis) genesis}})
 
+
+;stake holders 
+; full datastructure
+; {:balance 10 :pubkey xyz}
+(def stake-holders {:s1 10 :s2 30 :s3 20 :s4 5 :s5 3 :s6 2 :s7 30})
+
+
+;delegates = peers
+
+;global state simulation 
 (def initial-state
   {:peerA (init-peer :peerA)
    :peerB (init-peer :peerB)
@@ -34,14 +44,18 @@
 
 
 
-(defn create-block [peer]
+(defn create-block-chain [peer]
   (let [{:keys [chain pending id blocks]} peer
         max-block (apply max-key :height (vals blocks))
         ;new block from pending tx
         ;new block height is +1 from last
+
         new-block {:txs pending
                    :height (inc (:height max-block))
-                   :parent (uuid max-block)}]
+                   :previousblock max-block ;TODO blockhash
+                   }
+        ;new-block-hash 
+        ]
     {:head new-block
      :pending []
      :id id
@@ -67,7 +81,7 @@
     (loop [chain []
            b m]
       (if b
-        (recur (conj chain b) (blocks (:parent b)))
+        (recur (conj chain b) (blocks (:previousblock b)))
         (vec (reverse chain))))))
 
 
@@ -98,7 +112,7 @@
 
 ;; perfect simulation
 (defn simulate [steps]
-  (let [block-order (peer-order (keys init) steps)]
+  (let [block-order (peer-order (keys initial-state) steps)]
     (for [i (range steps)]
       (swap! state
              (fn [old]
@@ -107,16 +121,20 @@
                     ;; 1. collect transactions for block
                     (send-transaction peer i)
                     ;; 2. create a block
-                    (update peer create-block)
+                    (update peer create-block-chain)
                     ;; 3. send out the block to other peers
                     ;; TODO model indirection through inbox
                     (send-new-block peer))))))))
 
 
-;(simulate 10)
+(simulate 10)
 
 (def longest (find-longest-chain (:peerA @state)))
 
-(def settled (settled-chain longest (keys init)))
+(def settled (settled-chain longest (keys initial-state)))
+
+(def a 10)
 
 ;(reduce + (mapcat :txs longest)) ;; => 45
+
+;
