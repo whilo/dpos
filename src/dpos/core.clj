@@ -10,25 +10,20 @@
 
 
 (def genesis {:parent nil
-              :pos 0
+              :height 0
               :txs []})
 
 
+(defn init-peer [id]
+  {:head (uuid genesis)
+           :id id
+           :pending []
+           :blocks {(uuid genesis) genesis}})
 
-(def init
-  {:peerA {:head (uuid genesis)
-           :id :peerA
-           :pending []
-           :blocks {(uuid genesis) genesis}}
-   :peerB {:head (uuid genesis)
-           :id :peerB
-           :pending []
-           :blocks {(uuid genesis) genesis}}
-   :peerC {:head (uuid genesis)
-           :id :peerC
-           :pending []
-           :blocks {(uuid genesis) genesis}}})
-
+(def initial-state
+  {:peerA (init-peer :peerA)
+   :peerB (init-peer :peerB)
+   :peerC (init-peer :peerC)})
 
 
 ;; model sequence of steps
@@ -41,9 +36,11 @@
 
 (defn create-block [peer]
   (let [{:keys [chain pending id blocks]} peer
-        max-block (apply max-key :pos (vals blocks))
+        max-block (apply max-key :height (vals blocks))
+        ;new block from pending tx
+        ;new block height is +1 from last
         new-block {:txs pending
-                   :pos (inc (:pos max-block))
+                   :height (inc (:height max-block))
                    :parent (uuid max-block)}]
     {:head new-block
      :pending []
@@ -66,7 +63,7 @@
 
 (defn find-longest-chain [peer]
   (let [{:keys [blocks]} peer
-        m (apply max-key :pos (vals blocks))]
+        m (apply max-key :height (vals blocks))]
     (loop [chain []
            b m]
       (if b
@@ -83,7 +80,10 @@
 ;; stateful simulation:
 
 
-(def state (atom init))
+(def state (atom initial-state))
+
+(defn set-genesis []
+  (reset! state (atom initial-state)))
 
 
 (clojure.pprint/pprint @state)
@@ -113,32 +113,10 @@
                     (send-new-block peer))))))))
 
 
-(simulate 10)
+;(simulate 10)
 
 (def longest (find-longest-chain (:peerA @state)))
 
 (def settled (settled-chain longest (keys init)))
 
-
-
-(reduce + (mapcat :txs longest)) ;; => 45
-
-
-;; simplified EOS
-;; we do not do the latency reduction with intermediate blocks for now
-
-;; TODO mark settled blocks and ensure longest chain contains all settled blocks
-;; simulate discretized time with stochasticity
-
-;; open questions
-
-;; - how is time and peer<->block sequence agreed upon?
-;; - model double spending attack
-
-;; https://steemit.com/eos/@eosgo/4izmr903
-;; orthogonal design questions
-;; - collect fees due to tx type (and cost)
-;; - ensure public key integrity on system entry
-;; - users can sign prior block in tx to validate block chain
-;; - all peers should ack after receive new block to shorten irreversible ack, high water mark
-;; - TODO 2/3 need to be byzantine for DPoS to fail (?)
+;(reduce + (mapcat :txs longest)) ;; => 45
